@@ -2,21 +2,64 @@
 This module defines the math_agent, which is responsible for solving arithmetic, powers, and multi-step problems.
 """
 
+import json
+import sys
+from pathlib import Path
+import flyte
+
+# Add project root to path for imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# Import tools to register them
+import tools.math_tools
+
 from utils.decorators import agent, agent_tools
 from utils.plan_executor import execute_plan
+from dataclasses import dataclass
+from config import base_env
 
+# ----------------------------------
+# Data Models
+# ----------------------------------
+
+@dataclass
+class MathAgentResult:
+    """Result from math agent execution"""
+    final_result: str
+    steps: str  # JSON string of steps taken
+    error: str = ""  # Empty if no error
+
+
+# ----------------------------------
+# Math Agent Task Environment
+# ----------------------------------
+env = base_env
+# env = flyte.TaskEnvironment(
+#     name="math_agent_env",
+#     image=flyte.Image.from_debian_base().with_requirements("requirements.txt"),
+#     secrets=[
+#         flyte.Secret(key="OPENAI_API_KEY", as_env_var="OPENAI_API_KEY"),
+#     ],
+#     # Future: Add math-specific resources
+#     # resources=flyte.Resources(cpu=2, mem="4Gi")
+# )
+
+
+@env.task
 @agent("math")
-async def math_agent(prompt, memory_log):
+async def math_agent(task: str) -> MathAgentResult:
     """
     Math agent that processes user prompts to solve arithmetic and multi-step problems.
 
     Args:
-        prompt (str): The user prompt containing the math problem.
-        memory_log (list): A log of previous interactions for context.
+        task (str): The math task to solve.
 
     Returns:
-        dict: The result of the computation and the steps taken.
+        MathAgentResult: The result of the computation and the steps taken.
     """
+    print(f"[Math Agent] Processing: {task}")
+
     toolset = agent_tools["math"]
     tool_list = "\n".join([f"{name}: {fn.__doc__.strip()}" for name, fn in toolset.items()])
     system_msg = (
@@ -31,4 +74,13 @@ async def math_agent(prompt, memory_log):
         "IMPORTANT: Always include a 'reasoning' field explaining why this tool is being called."
     )
 
-    return await execute_plan(prompt, agent="math", system_msg=system_msg)
+    memory_log = []  # No memory persistence for now
+    result = await execute_plan(task, agent="math", system_msg=system_msg)
+
+    print(f"[Math Agent] Result: {result}")
+
+    return MathAgentResult(
+        final_result=str(result.get("final_result", "")),
+        steps=json.dumps(result.get("steps", [])),
+        error=result.get("error", "")
+    )

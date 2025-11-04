@@ -1,7 +1,9 @@
 from utils.decorators import tool
+import flyte
 
 @tool(agent="math")
-def add(a, b):
+@flyte.trace
+async def add(a, b):
     """
     Adds two numbers together.
 
@@ -12,10 +14,13 @@ def add(a, b):
     Returns:
         int or float: The sum of the two numbers.
     """
+    print(f"TOOL CALL: Adding {a} and {b}")
     return a + b
 
+
 @tool(agent="math")
-def multiply(a, b):
+@flyte.trace
+async def multiply(a, b):
     """
     Multiplies two numbers.
 
@@ -29,7 +34,8 @@ def multiply(a, b):
     return a * b
 
 @tool(agent="math")
-def power(a, b):
+@flyte.trace
+async def power(a, b):
     """
     Raises a number to the power of another number.
 

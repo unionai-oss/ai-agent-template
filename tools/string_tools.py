@@ -1,7 +1,10 @@
 from utils.decorators import tool
+import flyte
+
 
 @tool(agent="string")
-def word_count(s):
+@flyte.trace
+async def word_count(s):
     """Calculates the number of words in the given string.
 
     Args:
@@ -12,8 +15,10 @@ def word_count(s):
     """
     return len(s.split())
 
+
 @tool(agent="string")
-def letter_count(s):
+@flyte.trace
+async def letter_count(s):
     """Calculates the number of alphabetic characters in the given string.
 
     Args:

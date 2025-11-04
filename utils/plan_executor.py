@@ -1,4 +1,5 @@
 import json
+import asyncio
 from openai import AsyncOpenAI
 from config import OPENAI_API_KEY
 from utils.logger import Logger
@@ -55,7 +56,12 @@ async def execute_plan(user_prompt, verbose=False, agent=None, system_msg=None):
             args = [last_result if str(a).lower() == "previous" else a for a in args]
 
             if tool_name in toolset:
-                result = toolset[tool_name](*args)
+                # Tools are now async, so we need to await them
+                tool_func = toolset[tool_name]
+                if asyncio.iscoroutinefunction(tool_func):
+                    result = await tool_func(*args)
+                else:
+                    result = tool_func(*args)
             else:
                 await logger.log(tool=tool_name, args=args, error="Unknown tool", reasoning=reasoning)
                 raise ValueError(f"Unknown tool: {tool_name}")
