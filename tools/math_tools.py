@@ -3,7 +3,7 @@ import flyte
 
 @tool(agent="math")
 @flyte.trace
-async def add(a, b):
+async def add(a: int|float, b: int|float) -> float:
     """
     Adds two numbers together.
 
@@ -15,12 +15,12 @@ async def add(a, b):
         int or float: The sum of the two numbers.
     """
     print(f"TOOL CALL: Adding {a} and {b}")
-    return a + b
+    return float(a + b)
 
 
 @tool(agent="math")
 @flyte.trace
-async def multiply(a, b):
+async def multiply(a, b) -> float:
     """
     Multiplies two numbers.
 
@@ -31,11 +31,11 @@ async def multiply(a, b):
     Returns:
         int or float: The product of the two numbers.
     """
-    return a * b
+    return float(a * b)
 
 @tool(agent="math")
 @flyte.trace
-async def power(a, b):
+async def power(a, b) -> float:
     """
     Raises a number to the power of another number.
 
@@ -46,4 +46,4 @@ async def power(a, b):
     Returns:
         int or float: The result of raising the base to the given exponent.
     """
-    return a ** b
+    return float(a ** b)

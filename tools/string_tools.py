@@ -4,7 +4,7 @@ import flyte
 
 @tool(agent="string")
 @flyte.trace
-async def word_count(s):
+async def word_count(s) -> int:
     """Calculates the number of words in the given string.
 
     Args:
@@ -18,7 +18,7 @@ async def word_count(s):
 
 @tool(agent="string")
 @flyte.trace
-async def letter_count(s):
+async def letter_count(s) -> int:
     """Calculates the number of alphabetic characters in the given string.
 
     Args:
