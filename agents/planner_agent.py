@@ -22,6 +22,7 @@ from config import base_env
 import agents.math_agent
 import agents.string_agent
 import agents.web_search_agent
+import agents.code_agent
 
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 

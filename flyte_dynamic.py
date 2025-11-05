@@ -21,6 +21,7 @@ from agents.planner_agent import planner_agent, PlannerDecision, AgentStep
 from agents.math_agent import math_agent, MathAgentResult
 from agents.string_agent import string_agent, StringAgentResult
 from agents.web_search_agent import web_search_agent, WebSearchAgentResult
+from agents.code_agent import code_agent, CodeAgentResult
 from config import base_env
 
 # ----------------------------------
@@ -102,6 +103,10 @@ async def execute_dynamic_task(user_request: str) -> TaskResult:
             agent_result = await web_search_agent(step.task)
             result_summary = agent_result.final_result
             error = agent_result.error
+        elif step.agent == "code":
+            agent_result = await code_agent(step.task)
+            result_summary = agent_result.final_result
+            error = agent_result.error
         else:
             # Fallback for unknown agent
             print(f"[Orchestrator] WARNING: Unknown agent '{step.agent}'")
@@ -160,8 +165,11 @@ if __name__ == "__main__":
     # Web search test
     # user_request = "Search for recent news about Flyte workflow orchestration"
 
-    # Complex multi-agent test (all three agents)
-    user_request = "Calculate 10 factorial, count words in 'AI is transforming software', and search for latest Flyte 2.0 features"
+    # Code execution test
+    user_request = "Write Python code to calculate the first 10 Fibonacci numbers"
+
+    # Complex multi-agent test (all agents)
+    # user_request = "Calculate 10 factorial, count words in 'AI is transforming software', and search for latest Flyte 2.0 features"
 
     execution = flyte.run(
         execute_dynamic_task,
