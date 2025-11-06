@@ -148,8 +148,24 @@ async def execute_dynamic_task(user_request: str) -> TaskResult:
 # ----------------------------------
 
 if __name__ == "__main__":
-    # This allows local testing but won't break remote execution
-    flyte.init_from_config(".flyte/config.yaml")
+    import argparse
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Run Flyte dynamic workflow")
+    parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Run workflow locally using flyte.init() instead of remote execution"
+    )
+    args = parser.parse_args()
+
+    # Initialize Flyte based on local/remote flag
+    if args.local:
+        print("Running workflow LOCALLY with flyte.init()")
+        flyte.init()
+    else:
+        print("Running workflow REMOTELY with flyte.init_from_config()")
+        flyte.init_from_config(".flyte/config.yaml")
 
     # Test prompts - uncomment the one you want to test:
 
