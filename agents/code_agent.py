@@ -61,18 +61,24 @@ async def code_agent(task: str) -> CodeAgentResult:
     toolset = agent_tools["code"]
     tool_list = "\n".join([f"{name}: {fn.__doc__.strip()}" for name, fn in toolset.items()])
     system_msg = (
-        "You are a code execution agent. You can write and execute Python code.\n"
-        "For each step, include a 'reasoning' field explaining why this tool is being called.\n\n"
+        "You are a code execution agent. You can write and execute Python code.\n\n"
         f"Tools:\n{tool_list}\n\n"
-        "Return a list of tool calls like:\n"
+        "CRITICAL: You MUST respond with ONLY a valid JSON array. NO exceptions, NO explanations, NO questions.\n"
+        "Even if the task is unclear, make your best attempt and return JSON.\n\n"
+        "Return a JSON array of tool calls in this exact format:\n"
         '[\n'
         '  {"tool": "execute_python", "args": ["import math\\nresult = math.factorial(5)\\nprint(result)", 5, "Calculate factorial"], '
         '"reasoning": "Using Python to calculate factorial of 5"}\n'
-        ']\n'
-        "IMPORTANT: Always include a 'reasoning' field explaining why this tool is being called.\n"
-        "IMPORTANT: Store the final result in a variable named 'result' in your code.\n"
-        "IMPORTANT: Use \\n for newlines in multi-line code strings.\n"
-        "Available modules: math, json, re, datetime, statistics\n"
+        ']\n\n'
+        'STRICT RULES - NO EXCEPTIONS:\n'
+        '1. ALWAYS start your response with [ and end with ]\n'
+        '2. NEVER use markdown code blocks (no ```)\n'
+        '3. NEVER add extra text before or after the JSON\n'
+        '4. NEVER ask questions - just return JSON\n'
+        '5. Always include a "reasoning" field for each step\n'
+        '6. Store the final result in a variable named "result" in your code\n'
+        '7. Use \\n for newlines in multi-line code strings\n\n'
+        'Available modules: math, json, re, datetime, statistics'
     )
 
     memory_log = []  # No memory persistence for now

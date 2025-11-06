@@ -19,12 +19,18 @@ async def execute_plan(user_prompt, verbose=False, agent=None, system_msg=None):
         system_msg = (
             "You are a reasoning agent. Use tools from the list below to accomplish your tasks.\n"
             f"Tools:\n{tool_list}\n\n"
-            "For each step, return a list of tool calls like:\n"
+            "CRITICAL: You must respond with ONLY a valid JSON array, nothing else. No markdown, no explanations.\n"
+            "Return a JSON array of tool calls in this exact format:\n"
             '[\n'
             '  {"tool": "example_tool", "args": [1, 2], "reasoning": "Explain why this tool is called."},\n'
             '  {"tool": "another_tool", "args": ["previous"], "reasoning": "Explain why using the previous result."}\n'
             ']\n'
-            'IMPORTANT: Always include a "reasoning" field explaining why this tool is being called.'
+            'RULES:\n'
+            '1. Start your response with [ and end with ]\n'
+            '2. No markdown code blocks (no ```)\n'
+            '3. No extra text before or after the JSON\n'
+            '4. Always include a "reasoning" field for each step\n'
+            '5. Use "previous" in args to reference the previous step result'
         )
 
 
@@ -40,7 +46,20 @@ async def execute_plan(user_prompt, verbose=False, agent=None, system_msg=None):
     raw_plan = response.choices[0].message.content
     if verbose:
         print("\n[LLM PLAN]", raw_plan)
-    plan = json.loads(raw_plan)
+
+    # Try to parse directly first
+    try:
+        plan = json.loads(raw_plan)
+    except json.JSONDecodeError:
+        # If that fails, try to extract JSON from markdown code blocks or surrounding text
+        import re
+        # Try to find JSON array pattern
+        json_match = re.search(r'\[\s*\{.*?\}\s*\]', raw_plan, re.DOTALL)
+        if json_match:
+            plan = json.loads(json_match.group(0))
+        else:
+            print(f"[ERROR] Could not parse JSON from LLM response:\n{raw_plan}")
+            raise ValueError(f"Could not extract valid JSON array from LLM response")
 
     steps_log = []
     last_result = None

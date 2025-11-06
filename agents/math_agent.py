@@ -63,15 +63,20 @@ async def math_agent(task: str) -> MathAgentResult:
     toolset = agent_tools["math"]
     tool_list = "\n".join([f"{name}: {fn.__doc__.strip()}" for name, fn in toolset.items()])
     system_msg = (
-        "You are a math agent that can solve arithmetic, powers, and multi-step problems.\n"
-        "For each step, include a 'reasoning' field explaining why this tool is being called.\n\n"
+        "You are a math agent that can solve arithmetic, powers, and multi-step problems.\n\n"
         f"Tools:\n{tool_list}\n\n"
-        "Return a list of tool calls like:\n"
+        "CRITICAL: You must respond with ONLY a valid JSON array, nothing else. No markdown, no explanations.\n"
+        "Return a JSON array of tool calls in this exact format:\n"
         '[\n'
         '  {"tool": "add", "args": [2, 3], "reasoning": "Adding 2 and 3 to compute the sum."},\n'
         '  {"tool": "multiply", "args": ["previous", 5], "reasoning": "Multiplying previous result by 5."}\n'
-        ']'
-        "IMPORTANT: Always include a 'reasoning' field explaining why this tool is being called."
+        ']\n'
+        'RULES:\n'
+        '1. Start your response with [ and end with ]\n'
+        '2. No markdown code blocks (no ```)\n'
+        '3. No extra text before or after the JSON\n'
+        '4. Always include a "reasoning" field for each step\n'
+        '5. Use "previous" in args to reference the previous step result'
     )
 
     memory_log = []  # No memory persistence for now
