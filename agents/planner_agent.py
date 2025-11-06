@@ -35,6 +35,12 @@ class AgentStep:
     """Single step in the execution plan"""
     agent: str
     task: str
+    dependencies: List[int] = None  # List of step indices this step depends on (0-indexed)
+
+    def __post_init__(self):
+        # Default to empty list if None
+        if self.dependencies is None:
+            self.dependencies = []
 
 
 @dataclass
@@ -80,14 +86,31 @@ async def planner_agent(user_request: str) -> PlannerDecision:
     system_msg = (
         f"You are a routing agent.\nAvailable agents:\n{agent_list}\n\n"
         f"Recent memory:\n{context}\n\n"
-        f"Analyze the user's request and decide which agent(s) to use.\n"
-        f"For SINGLE-STEP requests, return: {{\"steps\": [{{\"agent\": \"math\", \"task\": \"Add 3 and 5\"}}]}}\n"
-        f"For MULTI-STEP requests, return multiple steps in order:\n"
+        f"Analyze the user's request and decide which agent(s) to use.\n\n"
+        f"DEPENDENCIES: Use 'dependencies' to specify which steps must complete before this step.\n"
+        f"- dependencies is a list of step indices (0-indexed)\n"
+        f"- Empty list [] means the step can run immediately (no dependencies)\n"
+        f"- Steps with no dependencies can run in PARALLEL\n"
+        f"- Steps with dependencies will wait for those steps to complete\n\n"
+        f"Examples:\n\n"
+        f"INDEPENDENT TASKS (can run in parallel):\n"
         f"{{\"steps\": [\n"
-        f"  {{\"agent\": \"math\", \"task\": \"Calculate factorial of 5\"}},\n"
-        f"  {{\"agent\": \"string\", \"task\": \"Count words in 'Hello World'\"}}\n"
-        f"]}}\n"
-        f"IMPORTANT: Always wrap steps in a 'steps' array, even for single requests."
+        f"  {{\"agent\": \"math\", \"task\": \"Calculate 5 factorial\", \"dependencies\": []}},\n"
+        f"  {{\"agent\": \"string\", \"task\": \"Count words in 'Hello World'\", \"dependencies\": []}},\n"
+        f"  {{\"agent\": \"web_search\", \"task\": \"Search for Python tutorials\", \"dependencies\": []}}\n"
+        f"]}}\n\n"
+        f"DEPENDENT TASKS (step 1 must complete before step 2):\n"
+        f"{{\"steps\": [\n"
+        f"  {{\"agent\": \"math\", \"task\": \"Calculate 5 times 3\", \"dependencies\": []}},\n"
+        f"  {{\"agent\": \"math\", \"task\": \"Add 10 to the previous result\", \"dependencies\": [0]}}\n"
+        f"]}}\n\n"
+        f"MIXED (steps 0 and 1 run in parallel, step 2 waits for both):\n"
+        f"{{\"steps\": [\n"
+        f"  {{\"agent\": \"math\", \"task\": \"Calculate 5 factorial\", \"dependencies\": []}},\n"
+        f"  {{\"agent\": \"string\", \"task\": \"Count letters in 'test'\", \"dependencies\": []}},\n"
+        f"  {{\"agent\": \"code\", \"task\": \"Combine the results\", \"dependencies\": [0, 1]}}\n"
+        f"]}}\n\n"
+        f"IMPORTANT: Always include 'dependencies' field for each step, even if empty []."
     )
 
     res = await client.chat.completions.create(
@@ -107,10 +130,18 @@ async def planner_agent(user_request: str) -> PlannerDecision:
         result = {"steps": [{"agent": result["agent"], "task": result["task"]}]}
 
     # Convert to dataclass
-    steps = [AgentStep(agent=step["agent"], task=step["task"]) for step in result["steps"]]
+    steps = [
+        AgentStep(
+            agent=step["agent"],
+            task=step["task"],
+            dependencies=step.get("dependencies", [])
+        )
+        for step in result["steps"]
+    ]
 
     print(f"[Planner Agent] Plan has {len(steps)} step(s)")
     for i, step in enumerate(steps, 1):
-        print(f"[Planner Agent]   Step {i}: {step.agent} - {step.task}")
+        deps_str = f" (depends on: {step.dependencies})" if step.dependencies else " (no dependencies)"
+        print(f"[Planner Agent]   Step {i}: {step.agent} - {step.task}{deps_str}")
 
     return PlannerDecision(steps=steps)

@@ -8,9 +8,10 @@ allowing independent scaling, resource allocation, and container configuration.
 
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 from dataclasses import dataclass
 import flyte
+import asyncio
 
 # Add project root to Python path
 project_root = Path(__file__).parent
@@ -82,50 +83,90 @@ async def execute_dynamic_task(user_request: str) -> TaskResult:
 
     print(f"[Orchestrator] Planner created plan with {len(planner_decision.steps)} step(s)")
 
-    # Step 2: Execute each agent task in sequence
-    agent_executions = []
+    # Step 2: Execute agent tasks with dependency-aware parallelism
+    # Store completed results indexed by step number
+    completed_results: Dict[int, AgentExecution] = {}
+
+    # Track which steps are ready to execute (no pending dependencies)
+    pending_steps = list(enumerate(planner_decision.steps))
+
+    while pending_steps:
+        # Find all steps that can execute now (dependencies satisfied)
+        ready_steps = []
+        remaining_steps = []
+
+        for step_idx, step in pending_steps:
+            # Check if all dependencies are completed
+            deps_satisfied = all(dep_idx in completed_results for dep_idx in step.dependencies)
+
+            if deps_satisfied:
+                ready_steps.append((step_idx, step))
+            else:
+                remaining_steps.append((step_idx, step))
+
+        if not ready_steps:
+            # This shouldn't happen with valid dependency graphs, but handle it gracefully
+            print("[Orchestrator] ERROR: No steps ready to execute, but pending steps remain (circular dependency?)")
+            break
+
+        print(f"[Orchestrator] Executing {len(ready_steps)} step(s) in parallel...")
+
+        # Execute all ready steps in parallel
+        async def execute_step(step_idx: int, step: AgentStep) -> tuple:
+            """Execute a single agent step"""
+            print(f"[Orchestrator]   Step {step_idx}: Calling {step.agent} agent...")
+            print(f"[Orchestrator]     Task: {step.task}")
+
+            # Route to appropriate agent task
+            if step.agent == "math":
+                agent_result = await math_agent(step.task)
+                result_summary = agent_result.final_result
+                error = agent_result.error
+            elif step.agent == "string":
+                agent_result = await string_agent(step.task)
+                result_summary = agent_result.final_result
+                error = agent_result.error
+            elif step.agent == "web_search":
+                agent_result = await web_search_agent(step.task)
+                result_summary = agent_result.final_result
+                error = agent_result.error
+            elif step.agent == "code":
+                agent_result = await code_agent(step.task)
+                result_summary = agent_result.final_result
+                error = agent_result.error
+            else:
+                # Fallback for unknown agent
+                print(f"[Orchestrator] WARNING: Unknown agent '{step.agent}'")
+                result_summary = ""
+                error = f"Unknown agent: {step.agent}"
+
+            print(f"[Orchestrator]   Step {step_idx} completed: {result_summary}")
+
+            return step_idx, AgentExecution(
+                agent=step.agent,
+                task=step.task,
+                result_summary=result_summary,
+                error=error
+            )
+
+        # Execute all ready steps concurrently
+        results = await asyncio.gather(*[execute_step(idx, step) for idx, step in ready_steps])
+
+        # Store completed results
+        for step_idx, execution in results:
+            completed_results[step_idx] = execution
+
+        # Update pending steps
+        pending_steps = remaining_steps
+
+    # Convert to list in original order
+    agent_executions = [completed_results[i] for i in range(len(planner_decision.steps))]
+
+    # Collect final results
     final_results = []
-
-    for i, step in enumerate(planner_decision.steps, 1):
-        print(f"[Orchestrator] Step {i+1}: Calling {step.agent} agent...")
-        print(f"[Orchestrator]   Task: {step.task}")
-
-        # Route to appropriate agent task
-        if step.agent == "math":
-            agent_result = await math_agent(step.task)
-            result_summary = agent_result.final_result
-            error = agent_result.error
-        elif step.agent == "string":
-            agent_result = await string_agent(step.task)
-            result_summary = agent_result.final_result
-            error = agent_result.error
-        elif step.agent == "web_search":
-            agent_result = await web_search_agent(step.task)
-            result_summary = agent_result.final_result
-            error = agent_result.error
-        elif step.agent == "code":
-            agent_result = await code_agent(step.task)
-            result_summary = agent_result.final_result
-            error = agent_result.error
-        else:
-            # Fallback for unknown agent
-            print(f"[Orchestrator] WARNING: Unknown agent '{step.agent}'")
-            result_summary = ""
-            error = f"Unknown agent: {step.agent}"
-
-        print(f"[Orchestrator]   Result: {result_summary}")
-
-        # Store execution
-        agent_executions.append(AgentExecution(
-            agent=step.agent,
-            task=step.task,
-            result_summary=result_summary,
-            error=error
-        ))
-
-        # Collect results
-        if result_summary and not error:
-            final_results.append(f"{step.agent}: {result_summary}")
+    for execution in agent_executions:
+        if execution.result_summary and not execution.error:
+            final_results.append(f"{execution.agent}: {execution.result_summary}")
 
     # Combine all results
     combined_result = " | ".join(final_results) if final_results else "No results"
@@ -182,10 +223,20 @@ if __name__ == "__main__":
     # user_request = "Search for recent news about Flyte workflow orchestration"
 
     # Code execution test
-    user_request = "Write Python code to calculate the first 10 Fibonacci numbers"
+    # user_request = "Write Python code to calculate the first 10 Fibonacci numbers"
 
-    # Complex multi-agent test (all agents)
+    # Parallel execution test (independent tasks)
     # user_request = "Calculate 10 factorial, count words in 'AI is transforming software', and search for latest Flyte 2.0 features"
+
+    # Dependency test (sequential tasks where later depends on earlier)
+    # user_request = "Calculate 5 times 8 and 20 + 5, then add those two results together"
+    user_request = """"Calculate 5 factorial, 10 times 10, count words in 'hello world', 
+  count letters in 'test', search for 'Python async', search for 'Flyte workflows', 
+  calculate 3 plus 7, count words in 'agent orchestration system', then write Python 
+  code to sum all the numeric results and concatenate all the text results"""
+
+    # Mixed parallel + dependencies test
+    # user_request = "Calculate 5 factorial and count letters in 'hello', then write Python code to multiply those two results together"
 
     execution = flyte.run(
         execute_dynamic_task,
