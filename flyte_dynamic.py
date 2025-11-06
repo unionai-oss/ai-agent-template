@@ -117,21 +117,33 @@ async def execute_dynamic_task(user_request: str) -> TaskResult:
             print(f"[Orchestrator]   Step {step_idx}: Calling {step.agent} agent...")
             print(f"[Orchestrator]     Task: {step.task}")
 
-            # Route to appropriate agent task
+            # If this step has dependencies, augment the task with dependency results
+            task = step.task
+            if step.dependencies:
+                dep_results = []
+                for dep_idx in step.dependencies:
+                    dep_exec = completed_results[dep_idx]
+                    dep_results.append(f"Step {dep_idx} ({dep_exec.agent}): {dep_exec.result_summary}")
+
+                # Prepend dependency results to the task
+                task = f"Context from previous steps:\n" + "\n".join(dep_results) + f"\n\nYour task: {task}"
+                print(f"[Orchestrator]     Augmented task with {len(step.dependencies)} dependency result(s)")
+
+            # Route to appropriate agent task (use augmented task if dependencies exist)
             if step.agent == "math":
-                agent_result = await math_agent(step.task)
+                agent_result = await math_agent(task)
                 result_summary = agent_result.final_result
                 error = agent_result.error
             elif step.agent == "string":
-                agent_result = await string_agent(step.task)
+                agent_result = await string_agent(task)
                 result_summary = agent_result.final_result
                 error = agent_result.error
             elif step.agent == "web_search":
-                agent_result = await web_search_agent(step.task)
+                agent_result = await web_search_agent(task)
                 result_summary = agent_result.final_result
                 error = agent_result.error
             elif step.agent == "code":
-                agent_result = await code_agent(step.task)
+                agent_result = await code_agent(task)
                 result_summary = agent_result.final_result
                 error = agent_result.error
             else:
@@ -216,8 +228,14 @@ if __name__ == "__main__":
     # Simple string test
     # user_request = "Count the words in 'The quick brown fox jumps over the lazy dog'"
 
-    # Multi-agent test (math + string)
+    # Multi-agent test (math + string) - no dependencies
     # user_request = "Calculate 5 times 3, then count the words in 'Hello World'"
+
+    # Simple dependency test (math only)
+    user_request = "Calculate 2 plus 3 and 5 plus 6, then add those two results together"
+
+    # Math and string parallel + dependency test
+    # user_request = "Calculate 10 times 5 and count words in 'Hello World', then multiply the word count by the calculation result"
 
     # Web search test
     # user_request = "Search for recent news about Flyte workflow orchestration"
@@ -228,15 +246,14 @@ if __name__ == "__main__":
     # Parallel execution test (independent tasks)
     # user_request = "Calculate 10 factorial, count words in 'AI is transforming software', and search for latest Flyte 2.0 features"
 
-    # Dependency test (sequential tasks where later depends on earlier)
-    # user_request = "Calculate 5 times 8 and 20 + 5, then add those two results together"
-    user_request = """"Calculate 5 factorial, 10 times 10, count words in 'hello world', 
-  count letters in 'test', search for 'Python async', search for 'Flyte workflows', 
-  calculate 3 plus 7, count words in 'agent orchestration system', then write Python 
-  code to sum all the numeric results and concatenate all the text results"""
+    # Complex test with all agents
+    # user_request = """"Calculate 5 factorial, 10 times 10, count words in 'hello world',
+    #   count letters in 'test', search for 'Python async', search for 'Flyte workflows',
+    #   calculate 3 plus 7, count words in 'agent orchestration system', then write Python
+    #   code to sum all the numeric results and concatenate all the text results"""
 
-    # Mixed parallel + dependencies test
-    # user_request = "Calculate 5 factorial and count letters in 'hello', then write Python code to multiply those two results together"
+    # Mixed parallel + dependencies test (math and string)
+    # user_request = "Calculate 5 factorial and count letters in 'hello', then multiply those two results together"
 
     execution = flyte.run(
         execute_dynamic_task,

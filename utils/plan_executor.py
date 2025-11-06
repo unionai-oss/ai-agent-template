@@ -35,12 +35,17 @@ async def execute_plan(user_prompt, verbose=False, agent=None, system_msg=None):
 
 
 
+    # Add a few-shot example to reinforce JSON-only output
+    messages = [
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": "Add 2 and 3"},
+        {"role": "assistant", "content": '[{"tool": "add", "args": [2, 3], "reasoning": "Adding 2 and 3 to get the sum"}]'},
+        {"role": "user", "content": user_prompt}
+    ]
+
     response = await client.chat.completions.create(
         model="gpt-4",
-        messages=[
-            {"role": "system", "content": system_msg},
-            {"role": "user", "content": user_prompt}
-        ]
+        messages=messages
     )
 
     raw_plan = response.choices[0].message.content
@@ -50,16 +55,38 @@ async def execute_plan(user_prompt, verbose=False, agent=None, system_msg=None):
     # Try to parse directly first
     try:
         plan = json.loads(raw_plan)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
         # If that fails, try to extract JSON from markdown code blocks or surrounding text
         import re
-        # Try to find JSON array pattern
-        json_match = re.search(r'\[\s*\{.*?\}\s*\]', raw_plan, re.DOTALL)
-        if json_match:
-            plan = json.loads(json_match.group(0))
-        else:
-            print(f"[ERROR] Could not parse JSON from LLM response:\n{raw_plan}")
-            raise ValueError(f"Could not extract valid JSON array from LLM response")
+
+        print(f"[WARN] Direct JSON parse failed: {e}")
+        print(f"[WARN] Attempting to extract JSON from response...")
+
+        # Try to find JSON within markdown code blocks first
+        code_block_match = re.search(r'```(?:json)?\s*(\[.*?\])\s*```', raw_plan, re.DOTALL)
+        if code_block_match:
+            try:
+                plan = json.loads(code_block_match.group(1))
+                print("[INFO] Successfully extracted JSON from markdown code block")
+            except json.JSONDecodeError:
+                pass
+
+        # If no code block, try to find any JSON array in the text
+        if 'plan' not in locals():
+            # More greedy pattern that captures the whole array
+            json_match = re.search(r'\[(?:[^\[\]]*|\{[^}]*\})*\]', raw_plan, re.DOTALL)
+            if json_match:
+                try:
+                    plan = json.loads(json_match.group(0))
+                    print("[INFO] Successfully extracted JSON array from text")
+                except json.JSONDecodeError as e2:
+                    print(f"[ERROR] Extracted text is not valid JSON: {e2}")
+                    print(f"[ERROR] Extracted text:\n{json_match.group(0)}")
+                    print(f"[ERROR] Full LLM response:\n{raw_plan}")
+                    raise ValueError(f"Could not extract valid JSON array from LLM response")
+            else:
+                print(f"[ERROR] Could not find JSON array pattern in LLM response:\n{raw_plan}")
+                raise ValueError(f"Could not extract valid JSON array from LLM response")
 
     steps_log = []
     last_result = None
