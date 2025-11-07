@@ -7,3 +7,4 @@ beautifulsoup4==4.14.2
 flyte==2.0.0b25
 httpx
 unionai-reuse
+ipython
