@@ -60,24 +60,26 @@ async def web_search_agent(task: str) -> WebSearchAgentResult:
 
     toolset = agent_tools["web_search"]
     tool_list = "\n".join([f"{name}: {fn.__doc__.strip()}" for name, fn in toolset.items()])
-    system_msg = (
-        "You are a web search agent. You can search the web and fetch content from URLs.\n\n"
-        f"Tools:\n{tool_list}\n\n"
-        "CRITICAL: You must respond with ONLY a valid JSON array, nothing else. No markdown, no explanations.\n"
-        "Return a JSON array of tool calls in this exact format:\n"
-        '[\n'
-        '  {"tool": "duck_duck_go", "args": ["Python async tutorial", 5, "us-en", "moderate", "w"], '
-        '"reasoning": "Searching for recent Python async tutorials from the past week"},\n'
-        '  {"tool": "fetch_webpage", "args": ["https://example.com", 3000], '
-        '"reasoning": "Fetching content from the first result to extract details"}\n'
-        ']\n'
-        'RULES:\n'
-        '1. Start your response with [ and end with ]\n'
-        '2. No markdown code blocks (no ```)\n'
-        '3. No extra text before or after the JSON\n'
-        '4. Always include a "reasoning" field for each step\n'
-        '5. When using fetch_webpage, use the "href" from search results as the URL argument'
-    )
+    system_msg = f"""
+You are a web search agent. You can search the web and fetch content from URLs.
+
+Tools:
+{tool_list}
+
+CRITICAL: You must respond with ONLY a valid JSON array, nothing else. No markdown, no explanations.
+Return a JSON array of tool calls in this exact format:
+[
+  {{"tool": "duck_duck_go", "args": ["Python async tutorial", 5, "us-en", "moderate", "w"], "reasoning": "Searching for recent Python async tutorials from the past week"}},
+  {{"tool": "fetch_webpage", "args": ["https://example.com", 3000], "reasoning": "Fetching content from the first result to extract details"}}
+]
+
+RULES:
+1. Start your response with [ and end with ]
+2. No markdown code blocks (no ```)
+3. No extra text before or after the JSON
+4. Always include a "reasoning" field for each step
+5. When using fetch_webpage, use the "href" from search results as the URL argument
+"""
 
     memory_log = []  # No memory persistence for now
     result = await execute_plan(task, agent="web_search", system_msg=system_msg)

@@ -62,22 +62,26 @@ async def string_agent(task: str) -> StringAgentResult:
 
     toolset = agent_tools["string"]
     tool_list = "\n".join([f"{name}: {fn.__doc__.strip()}" for name, fn in toolset.items()])
-    system_msg = (
-        "You are a string analysis agent. You can count letters, words, and analyze text.\n\n"
-        f"Tools:\n{tool_list}\n\n"
-        "CRITICAL: You must respond with ONLY a valid JSON array, nothing else. No markdown, no explanations.\n"
-        "Return a JSON array of tool calls in this exact format:\n"
-        '[\n'
-        '  {"tool": "word_count", "args": ["hello world"], "reasoning": "Counting words in the input string."},\n'
-        '  {"tool": "letter_count", "args": ["previous"], "reasoning": "Counting letters in the previous result."}\n'
-        ']\n'
-        'RULES:\n'
-        '1. Start your response with [ and end with ]\n'
-        '2. No markdown code blocks (no ```)\n'
-        '3. No extra text before or after the JSON\n'
-        '4. Always include a "reasoning" field for each step\n'
-        '5. Use "previous" in args to reference the previous step result'
-    )
+    system_msg = f"""
+You are a string analysis agent. You can count letters, words, and analyze text.
+
+Tools:
+{tool_list}
+
+CRITICAL: You must respond with ONLY a valid JSON array, nothing else. No markdown, no explanations.
+Return a JSON array of tool calls in this exact format:
+[
+  {{"tool": "word_count", "args": ["hello world"], "reasoning": "Counting words in the input string."}},
+  {{"tool": "letter_count", "args": ["previous"], "reasoning": "Counting letters in the previous result."}}
+]
+
+RULES:
+1. Start your response with [ and end with ]
+2. No markdown code blocks (no ```)
+3. No extra text before or after the JSON
+4. Always include a "reasoning" field for each step
+5. Use "previous" in args to reference the previous step result
+"""
 
     memory_log = []  # No memory persistence for now
     result = await execute_plan(task, agent="string", system_msg=system_msg)

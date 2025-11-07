@@ -62,22 +62,26 @@ async def math_agent(task: str) -> MathAgentResult:
 
     toolset = agent_tools["math"]
     tool_list = "\n".join([f"{name}: {fn.__doc__.strip()}" for name, fn in toolset.items()])
-    system_msg = (
-        "You are a math agent that can solve arithmetic, powers, and multi-step problems.\n\n"
-        f"Tools:\n{tool_list}\n\n"
-        "CRITICAL: You must respond with ONLY a valid JSON array, nothing else. No markdown, no explanations.\n"
-        "Return a JSON array of tool calls in this exact format:\n"
-        '[\n'
-        '  {"tool": "add", "args": [2, 3], "reasoning": "Adding 2 and 3 to compute the sum."},\n'
-        '  {"tool": "multiply", "args": ["previous", 5], "reasoning": "Multiplying previous result by 5."}\n'
-        ']\n'
-        'RULES:\n'
-        '1. Start your response with [ and end with ]\n'
-        '2. No markdown code blocks (no ```)\n'
-        '3. No extra text before or after the JSON\n'
-        '4. Always include a "reasoning" field for each step\n'
-        '5. Use "previous" in args to reference the previous step result'
-    )
+    system_msg = f"""
+You are a math agent that can solve arithmetic, powers, and multi-step problems.
+
+Tools:
+{tool_list}
+
+CRITICAL: You must respond with ONLY a valid JSON array, nothing else. No markdown, no explanations.
+Return a JSON array of tool calls in this exact format:
+[
+  {{"tool": "add", "args": [2, 3], "reasoning": "Adding 2 and 3 to compute the sum."}},
+  {{"tool": "multiply", "args": ["previous", 5], "reasoning": "Multiplying previous result by 5."}}
+]
+
+RULES:
+1. Start your response with [ and end with ]
+2. No markdown code blocks (no ```)
+3. No extra text before or after the JSON
+4. Always include a "reasoning" field for each step
+5. Use "previous" in args to reference the previous step result
+"""
 
     memory_log = []  # No memory persistence for now
     result = await execute_plan(task, agent="math", system_msg=system_msg)
