@@ -21,7 +21,6 @@ base_env = flyte.TaskEnvironment(
         scaledown_ttl=60,
     ),
     # base image islightweight, doesn't need much compute
-    # resources=flyte.Resources(cpu=1, mem="1Gi")
 )
 
 # ----------------------------------
