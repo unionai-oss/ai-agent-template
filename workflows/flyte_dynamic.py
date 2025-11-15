@@ -234,11 +234,20 @@ if __name__ == "__main__":
     import argparse
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Run Flyte dynamic workflow")
+    parser = argparse.ArgumentParser(
+        description="Run Flyte dynamic workflow with intelligent agent routing",
+        epilog="Example: python workflows/flyte_dynamic.py --local --request 'Calculate 5 factorial'"
+    )
     parser.add_argument(
         "--local",
         action="store_true",
         help="Run workflow locally using flyte.init() instead of remote execution"
+    )
+    parser.add_argument(
+        "--request",
+        type=str,
+        default="Calculate 5 factorial",
+        help="The task request to execute (see README.md for examples)"
     )
     args = parser.parse_args()
 
@@ -250,57 +259,17 @@ if __name__ == "__main__":
         print("Running workflow REMOTELY with flyte.init_from_config()")
         flyte.init_from_config(".flyte/config.yaml")
 
-    # Test prompts - uncomment the one you want to test:
-
-    # Simple math test
-    # user_request = "Calculate 5 factorial"
-
-    # Simple string test
-    # user_request = "Count the words in 'The quick brown fox jumps over the lazy dog'"
-
-    # Multi-agent test (math + string) - no dependencies
-    # user_request = "Calculate 5 times 3, then count the words in 'Hello World'"
-
-    # Simple dependency test (math only)
-    # user_request = "Calculate 2 plus 3 and 5 plus 6, then add those two results together"
-
-    # Math and string parallel + dependency test
-    # user_request = "Calculate 10 times 5 and count words in 'Hello World', then multiply the word count by the calculation result"
-
-    # Web search test
-    # user_request = "Search for recent news about Flyte workflow orchestration"
-
-    # Code execution test
-    # user_request = "Write Python code to calculate the first 10 Fibonacci numbers"
-
-    # Weather test
-    # user_request = "What's the weather like in Tokyo?"
-
-    # Parallel execution test (independent tasks)
-    # user_request = "Calculate 10 factorial, count words in 'AI is transforming software', and search for latest Flyte 2.0 features"
-
-    # GDP Context Summarization Test - Shows how summaries reduce token usage!
-    # This demonstrates the value of context summarization:
-    # - Two web searches return large webpages (thousands of tokens each)
-    # - Math agent only receives 500-char summaries instead of full pages
-    user_request = "Search for the current GDP of France, search for the current GDP of Germany, then add those two GDP numbers together"
-
-    # Complex test with all agents
-    # user_request = """"Calculate 5 factorial, 10 times 10, count words in 'hello world',
-    #   count letters in 'test', search for 'Python async', search for 'Flyte workflows',
-    #   calculate 3 plus 7, count words in 'agent orchestration system', then write Python
-    #   code to sum all the numeric results and concatenate all the text results"""
-
-    # Mixed parallel + dependencies test (math and string)
-    # user_request = "Calculate 5 factorial and count letters in 'hello', then multiply those two results together"
+    print(f"\n=== Dynamic Multi-Agent Workflow ===")
+    print(f"Request: {args.request}\n")
 
     execution = flyte.run(
         execute_dynamic_task,
-        user_request=user_request
+        user_request=args.request
     )
 
     print(f"\n{'='*60}")
     print(f"Execution: {execution.name}")
     print(f"URL: {execution.url}")
-    print("Click the link above to view execution details in the Flyte UI 👆")
+    print("Click the link above to view execution details in the Flyte UI")
     print(f"{'='*60}\n")
+    print("\nSee README.md for more example queries!")
