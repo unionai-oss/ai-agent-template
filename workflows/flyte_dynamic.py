@@ -35,7 +35,8 @@ class AgentExecution:
     """Single agent execution with its result"""
     agent: str
     task: str
-    result_summary: str
+    result_summary: str  # Concise summary for passing to dependent steps
+    result_full: str     # Complete result for final output and debugging
     error: str = ""
 
 
@@ -132,36 +133,44 @@ async def execute_dynamic_task(user_request: str) -> TaskResult:
             # Route to appropriate agent task (use augmented task if dependencies exist)
             if step.agent == "math":
                 agent_result = await math_agent(task)
-                result_summary = agent_result.final_result
+                result_full = agent_result.final_result
+                result_summary = agent_result.final_result  # Math results are already concise
                 error = agent_result.error
             elif step.agent == "string":
                 agent_result = await string_agent(task)
-                result_summary = agent_result.final_result
+                result_full = agent_result.final_result
+                result_summary = agent_result.final_result  # String results are already concise
                 error = agent_result.error
             elif step.agent == "web_search":
                 agent_result = await web_search_agent(task)
-                result_summary = agent_result.final_result
+                result_full = agent_result.final_result
+                # Web search results can be large, use summary if available
+                result_summary = getattr(agent_result, 'summary', agent_result.final_result)
                 error = agent_result.error
             elif step.agent == "code":
                 agent_result = await code_agent(task)
-                result_summary = agent_result.final_result
+                result_full = agent_result.final_result
+                result_summary = agent_result.final_result  # Code results are typically concise
                 error = agent_result.error
             elif step.agent == "weather":
                 agent_result = await weather_agent(task)
-                result_summary = agent_result.final_result
+                result_full = agent_result.final_result
+                result_summary = agent_result.final_result  # Weather results are already concise
                 error = agent_result.error
             else:
                 # Fallback for unknown agent
                 print(f"[Orchestrator] WARNING: Unknown agent '{step.agent}'")
+                result_full = ""
                 result_summary = ""
                 error = f"Unknown agent: {step.agent}"
 
-            print(f"[Orchestrator]   Step {step_idx} completed: {result_summary}")
+            print(f"[Orchestrator]   Step {step_idx} completed: {result_summary[:100]}...")
 
             return step_idx, AgentExecution(
                 agent=step.agent,
                 task=step.task,
                 result_summary=result_summary,
+                result_full=result_full,
                 error=error
             )
 
@@ -253,11 +262,17 @@ if __name__ == "__main__":
     # Parallel execution test (independent tasks)
     # user_request = "Calculate 10 factorial, count words in 'AI is transforming software', and search for latest Flyte 2.0 features"
 
+    # GDP Context Summarization Test - Shows how summaries reduce token usage!
+    # This demonstrates the value of context summarization:
+    # - Two web searches return large webpages (thousands of tokens each)
+    # - Math agent only receives 500-char summaries instead of full pages
+    user_request = "Search for the current GDP of France, search for the current GDP of Germany, then add those two GDP numbers together"
+
     # Complex test with all agents
-    user_request = """"Calculate 5 factorial, 10 times 10, count words in 'hello world',
-      count letters in 'test', search for 'Python async', search for 'Flyte workflows',
-      calculate 3 plus 7, count words in 'agent orchestration system', then write Python
-      code to sum all the numeric results and concatenate all the text results"""
+    # user_request = """"Calculate 5 factorial, 10 times 10, count words in 'hello world',
+    #   count letters in 'test', search for 'Python async', search for 'Flyte workflows',
+    #   calculate 3 plus 7, count words in 'agent orchestration system', then write Python
+    #   code to sum all the numeric results and concatenate all the text results"""
 
     # Mixed parallel + dependencies test (math and string)
     # user_request = "Calculate 5 factorial and count letters in 'hello', then multiply those two results together"

@@ -28,6 +28,7 @@ class WebSearchAgentResult:
     """Result from web search agent execution"""
     final_result: str
     steps: str  # JSON string of steps taken
+    summary: str = ""  # Concise summary for passing to other agents
     error: str = ""  # Empty if no error
 
 
@@ -86,8 +87,16 @@ RULES:
 
     print(f"[Web Search Agent] Result: {result}")
 
+    full_result = str(result.get("final_result", ""))
+
+    # Create a concise summary (first 500 chars or first paragraph)
+    summary = full_result[:500] + "..." if len(full_result) > 500 else full_result
+
+    print(f"[Web Search Agent] Summary: {summary[:100]}...")
+
     return WebSearchAgentResult(
-        final_result=str(result.get("final_result", "")),
+        final_result=full_result,
         steps=json.dumps(result.get("steps", [])),
+        summary=summary,
         error=result.get("error", "")
     )
