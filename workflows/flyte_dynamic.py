@@ -25,6 +25,10 @@ from agents.web_search_agent import web_search_agent, WebSearchAgentResult
 from agents.code_agent import code_agent, CodeAgentResult
 from agents.weather_agent import weather_agent, WeatherAgentResult
 from config import base_env
+from utils.logger import Logger
+
+# Initialize logger for orchestrator
+logger = Logger(path="agent_trace_log.jsonl", verbose=False)
 
 # ----------------------------------
 # Data Models for Orchestrator
@@ -165,6 +169,19 @@ async def execute_dynamic_task(user_request: str) -> TaskResult:
                 error = f"Unknown agent: {step.agent}"
 
             print(f"[Orchestrator]   Step {step_idx} completed: {result_summary[:100]}...")
+
+            # Log to trace file
+            await logger.log(
+                step_idx=step_idx,
+                agent=step.agent,
+                input_task=task,
+                output_full=result_full,
+                output_summary=result_summary,
+                output_full_length=len(result_full),
+                output_summary_length=len(result_summary),
+                error=error,
+                dependencies=step.dependencies
+            )
 
             return step_idx, AgentExecution(
                 agent=step.agent,
