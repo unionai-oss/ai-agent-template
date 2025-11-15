@@ -7,10 +7,6 @@ from pathlib import Path
 import flyte
 from openai import AsyncOpenAI
 
-# # Add project root to path for imports
-# project_root = Path(__file__).parent.parent
-# sys.path.insert(0, str(project_root))
-
 from utils.decorators import agent
 from dataclasses import dataclass
 from config import base_env, OPENAI_API_KEY

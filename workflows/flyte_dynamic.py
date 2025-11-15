@@ -51,7 +51,7 @@ class TaskResult:
 # Orchestrator Task Environment
 # ----------------------------------
 env = base_env
-# orchestrator_env = flyte.TaskEnvironment(
+# env = flyte.TaskEnvironment(
 #     name="orchestrator_env",
 #     image=flyte.Image.from_debian_base().with_requirements("requirements.txt"),
 #     secrets=[
@@ -81,7 +81,6 @@ async def execute_dynamic_task(user_request: str) -> TaskResult:
     # Step 1: Call planner task to create execution plan
     print("[Orchestrator] Step 1: Calling planner agent...")
     planner_decision = await planner_agent(user_request)
-
     print(f"[Orchestrator] Planner created plan with {len(planner_decision.steps)} step(s)")
 
     # Step 2: Execute agent tasks with dependency-aware parallelism
