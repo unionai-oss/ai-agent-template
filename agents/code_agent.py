@@ -6,14 +6,26 @@ import json
 import sys
 from pathlib import Path
 import flyte
+from openai import AsyncOpenAI
 
 # Import tools to register them
 import tools.code_tools
 
 from utils.decorators import agent, agent_tools
-from utils.plan_executor import execute_plan
+from utils.plan_executor import execute_tool_plan, parse_plan_from_response
 from dataclasses import dataclass
-from config import base_env
+from config import base_env, OPENAI_API_KEY
+
+# ----------------------------------
+# Agent-Specific Configuration
+# ----------------------------------
+CODE_AGENT_CONFIG = {
+    "model": "gpt-4o",        # Needs reasoning for code generation
+    "temperature": 0.2,       # Low but not zero for creative solutions
+    "max_tokens": 1500,
+}
+
+client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # ----------------------------------
 # Data Models
@@ -82,8 +94,23 @@ STRICT RULES - NO EXCEPTIONS:
 Available modules: math, json, re, datetime, statistics
 """
 
-    memory_log = []  # No memory persistence for now
-    result = await execute_plan(task, agent="code", system_msg=system_msg)
+    # Call LLM to create plan using agent-specific config
+    response = await client.chat.completions.create(
+        model=CODE_AGENT_CONFIG["model"],
+        temperature=CODE_AGENT_CONFIG["temperature"],
+        max_tokens=CODE_AGENT_CONFIG["max_tokens"],
+        messages=[
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": "Calculate factorial of 5"},
+            {"role": "assistant", "content": '[{"tool": "execute_python", "args": ["import math\\nresult = math.factorial(5)\\nprint(result)", 5, "Calculate factorial"], "reasoning": "Using Python to calculate factorial of 5"}]'},
+            {"role": "user", "content": task}
+        ]
+    )
+
+    # Parse and execute the plan
+    raw_plan = response.choices[0].message.content
+    plan = parse_plan_from_response(raw_plan)
+    result = await execute_tool_plan(plan, agent="code")
 
     print(f"[Code Agent] Result: {result}")
 

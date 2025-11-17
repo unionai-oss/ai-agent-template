@@ -6,15 +6,26 @@ import json
 import sys
 from pathlib import Path
 import flyte
-
+from openai import AsyncOpenAI
 
 # Import tools to register them
 import tools.math_tools
 
 from utils.decorators import agent, agent_tools
-from utils.plan_executor import execute_plan
+from utils.plan_executor import execute_tool_plan, parse_plan_from_response
 from dataclasses import dataclass
-from config import base_env
+from config import base_env, OPENAI_API_KEY
+
+# ----------------------------------
+# Agent-Specific Configuration
+# ----------------------------------
+MATH_AGENT_CONFIG = {
+    "model": "gpt-4o-mini",  # Simple arithmetic doesn't need full GPT-4
+    "temperature": 0.0,       # Deterministic for math
+    "max_tokens": 500,
+}
+
+client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # ----------------------------------
 # Data Models
@@ -57,6 +68,7 @@ async def math_agent(task: str) -> MathAgentResult:
     """
     print(f"[Math Agent] Processing: {task}")
 
+    # Build system message with available tools
     toolset = agent_tools["math"]
     tool_list = "\n".join([f"{name}: {fn.__doc__.strip()}" for name, fn in toolset.items()])
     system_msg = f"""
@@ -80,8 +92,23 @@ RULES:
 5. Use "previous" in args to reference the previous step result
 """
 
-    memory_log = []  # No memory persistence for now
-    result = await execute_plan(task, agent="math", system_msg=system_msg)
+    # Call LLM to create plan using agent-specific config
+    response = await client.chat.completions.create(
+        model=MATH_AGENT_CONFIG["model"],
+        temperature=MATH_AGENT_CONFIG["temperature"],
+        max_tokens=MATH_AGENT_CONFIG["max_tokens"],
+        messages=[
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": "Add 2 and 3"},
+            {"role": "assistant", "content": '[{"tool": "add", "args": [2, 3], "reasoning": "Adding 2 and 3"}]'},
+            {"role": "user", "content": task}
+        ]
+    )
+
+    # Parse and execute the plan
+    raw_plan = response.choices[0].message.content
+    plan = parse_plan_from_response(raw_plan)
+    result = await execute_tool_plan(plan, agent="math")
 
     print(f"[Math Agent] Result: {result}")
 

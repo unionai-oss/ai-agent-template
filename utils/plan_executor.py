@@ -1,64 +1,28 @@
 import json
 import asyncio
-from openai import AsyncOpenAI
-from config import OPENAI_API_KEY
 from utils.logger import Logger
 from utils.decorators import agent_tools, tool_registry
 
 logger = Logger()
-client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 
-async def execute_plan(user_prompt, verbose=False, agent=None, system_msg=None):
-    toolset = agent_tools.get(agent, tool_registry)
-    tool_list = "\n".join([f"{name}: {fn.__doc__.strip()}" for name, fn in toolset.items()])
-    # ----------------------------------
-    # Default system message (General agent) if none provided
-    # ----------------------------------
-    if not system_msg:
-        system_msg = f"""
-You are a reasoning agent. Use tools from the list below to accomplish your tasks.
+def parse_plan_from_response(raw_plan: str) -> list:
+    """
+    Parse a tool execution plan from LLM response.
+    Handles both clean JSON and responses wrapped in markdown code blocks.
 
-Tools:
-{tool_list}
+    Args:
+        raw_plan: Raw text response from LLM
 
-CRITICAL: You must respond with ONLY a valid JSON array, nothing else. No markdown, no explanations.
-Return a JSON array of tool calls in this exact format:
-[
-  {{"tool": "example_tool", "args": [1, 2], "reasoning": "Explain why this tool is called."}},
-  {{"tool": "another_tool", "args": ["previous"], "reasoning": "Explain why using the previous result."}}
-]
+    Returns:
+        list: Parsed plan as list of tool call dictionaries
 
-RULES:
-1. Start your response with [ and end with ]
-2. No markdown code blocks (no ```)
-3. No extra text before or after the JSON
-4. Always include a "reasoning" field for each step
-5. Use "previous" in args to reference the previous step result
-"""
-
-
-
-    # Add a few-shot example to reinforce JSON-only output
-    messages = [
-        {"role": "system", "content": system_msg},
-        {"role": "user", "content": "Add 2 and 3"},
-        {"role": "assistant", "content": '[{"tool": "add", "args": [2, 3], "reasoning": "Adding 2 and 3 to get the sum"}]'},
-        {"role": "user", "content": user_prompt}
-    ]
-
-    response = await client.chat.completions.create(
-        model="gpt-4",
-        messages=messages
-    )
-
-    raw_plan = response.choices[0].message.content
-    if verbose:
-        print("\n[LLM PLAN]", raw_plan)
-
+    Raises:
+        ValueError: If plan cannot be parsed
+    """
     # Try to parse directly first
     try:
-        plan = json.loads(raw_plan)
+        return json.loads(raw_plan)
     except json.JSONDecodeError as e:
         # If that fails, try to extract JSON from markdown code blocks or surrounding text
         import re
@@ -72,25 +36,41 @@ RULES:
             try:
                 plan = json.loads(code_block_match.group(1))
                 print("[INFO] Successfully extracted JSON from markdown code block")
+                return plan
             except json.JSONDecodeError:
                 pass
 
         # If no code block, try to find any JSON array in the text
-        if 'plan' not in locals():
-            # More greedy pattern that captures the whole array
-            json_match = re.search(r'\[(?:[^\[\]]*|\{[^}]*\})*\]', raw_plan, re.DOTALL)
-            if json_match:
-                try:
-                    plan = json.loads(json_match.group(0))
-                    print("[INFO] Successfully extracted JSON array from text")
-                except json.JSONDecodeError as e2:
-                    print(f"[ERROR] Extracted text is not valid JSON: {e2}")
-                    print(f"[ERROR] Extracted text:\n{json_match.group(0)}")
-                    print(f"[ERROR] Full LLM response:\n{raw_plan}")
-                    raise ValueError(f"Could not extract valid JSON array from LLM response")
-            else:
-                print(f"[ERROR] Could not find JSON array pattern in LLM response:\n{raw_plan}")
+        json_match = re.search(r'\[(?:[^\[\]]*|\{[^}]*\})*\]', raw_plan, re.DOTALL)
+        if json_match:
+            try:
+                plan = json.loads(json_match.group(0))
+                print("[INFO] Successfully extracted JSON array from text")
+                return plan
+            except json.JSONDecodeError as e2:
+                print(f"[ERROR] Extracted text is not valid JSON: {e2}")
+                print(f"[ERROR] Extracted text:\n{json_match.group(0)}")
+                print(f"[ERROR] Full LLM response:\n{raw_plan}")
                 raise ValueError(f"Could not extract valid JSON array from LLM response")
+        else:
+            print(f"[ERROR] Could not find JSON array pattern in LLM response:\n{raw_plan}")
+            raise ValueError(f"Could not extract valid JSON array from LLM response")
+
+
+async def execute_tool_plan(plan: list, agent: str) -> dict:
+    """
+    Execute a plan by calling tools in sequence.
+    This is the core execution logic - agents call their LLM to get the plan,
+    then pass it here for execution.
+
+    Args:
+        plan: List of tool calls [{"tool": "name", "args": [...], "reasoning": "..."}]
+        agent: Which agent's toolset to use
+
+    Returns:
+        dict: {"final_result": ..., "steps": [...]} or {"error": ..., "steps": [...]}
+    """
+    toolset = agent_tools.get(agent, tool_registry)
 
     steps_log = []
     last_result = None

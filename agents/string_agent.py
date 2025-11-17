@@ -6,18 +6,26 @@ import json
 import sys
 from pathlib import Path
 import flyte
-
-# # Add project root to path for imports
-# project_root = Path(__file__).parent.parent
-# sys.path.insert(0, str(project_root))
+from openai import AsyncOpenAI
 
 # Import tools to register them
 import tools.string_tools
 
 from utils.decorators import agent, agent_tools
-from utils.plan_executor import execute_plan
+from utils.plan_executor import execute_tool_plan, parse_plan_from_response
 from dataclasses import dataclass
-from config import base_env
+from config import base_env, OPENAI_API_KEY
+
+# ----------------------------------
+# Agent-Specific Configuration
+# ----------------------------------
+STRING_AGENT_CONFIG = {
+    "model": "gpt-4o-mini",  # Text counting is simple
+    "temperature": 0.0,       # Deterministic
+    "max_tokens": 300,
+}
+
+client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # ----------------------------------
 # Data Models
@@ -60,6 +68,7 @@ async def string_agent(task: str) -> StringAgentResult:
     """
     print(f"[String Agent] Processing: {task}")
 
+    # Build system message with available tools
     toolset = agent_tools["string"]
     tool_list = "\n".join([f"{name}: {fn.__doc__.strip()}" for name, fn in toolset.items()])
     system_msg = f"""
@@ -83,8 +92,23 @@ RULES:
 5. Use "previous" in args to reference the previous step result
 """
 
-    memory_log = []  # No memory persistence for now
-    result = await execute_plan(task, agent="string", system_msg=system_msg)
+    # Call LLM to create plan using agent-specific config
+    response = await client.chat.completions.create(
+        model=STRING_AGENT_CONFIG["model"],
+        temperature=STRING_AGENT_CONFIG["temperature"],
+        max_tokens=STRING_AGENT_CONFIG["max_tokens"],
+        messages=[
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": "Count words in 'hello world'"},
+            {"role": "assistant", "content": '[{"tool": "word_count", "args": ["hello world"], "reasoning": "Counting words"}]'},
+            {"role": "user", "content": task}
+        ]
+    )
+
+    # Parse and execute the plan
+    raw_plan = response.choices[0].message.content
+    plan = parse_plan_from_response(raw_plan)
+    result = await execute_tool_plan(plan, agent="string")
 
     print(f"[String Agent] Result: {result}")
 

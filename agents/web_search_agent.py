@@ -6,18 +6,26 @@ import json
 import sys
 from pathlib import Path
 import flyte
-
-# # Add project root to path for imports
-# project_root = Path(__file__).parent.parent
-# sys.path.insert(0, str(project_root))
+from openai import AsyncOpenAI
 
 # Import tools to register them
 import tools.web_search_tools
 
 from utils.decorators import agent, agent_tools
-from utils.plan_executor import execute_plan
+from utils.plan_executor import execute_tool_plan, parse_plan_from_response
 from dataclasses import dataclass
-from config import base_env
+from config import base_env, OPENAI_API_KEY
+
+# ----------------------------------
+# Agent-Specific Configuration
+# ----------------------------------
+WEB_SEARCH_AGENT_CONFIG = {
+    "model": "gpt-4o",        # Needs good reasoning for search queries
+    "temperature": 0.3,       # Slight creativity for search terms
+    "max_tokens": 1000,
+}
+
+client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # ----------------------------------
 # Data Models
@@ -82,8 +90,23 @@ RULES:
 5. When using fetch_webpage, use the "href" from search results as the URL argument
 """
 
-    memory_log = []  # No memory persistence for now
-    result = await execute_plan(task, agent="web_search", system_msg=system_msg)
+    # Call LLM to create plan using agent-specific config
+    response = await client.chat.completions.create(
+        model=WEB_SEARCH_AGENT_CONFIG["model"],
+        temperature=WEB_SEARCH_AGENT_CONFIG["temperature"],
+        max_tokens=WEB_SEARCH_AGENT_CONFIG["max_tokens"],
+        messages=[
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": "Search for Python async tutorials from the past week"},
+            {"role": "assistant", "content": '[{"tool": "duck_duck_go", "args": ["Python async tutorial", 5, "us-en", "moderate", "w"], "reasoning": "Searching for recent Python async tutorials"}]'},
+            {"role": "user", "content": task}
+        ]
+    )
+
+    # Parse and execute the plan
+    raw_plan = response.choices[0].message.content
+    plan = parse_plan_from_response(raw_plan)
+    result = await execute_tool_plan(plan, agent="web_search")
 
     print(f"[Web Search Agent] Result: {result}")
 
