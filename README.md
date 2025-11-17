@@ -24,12 +24,13 @@ This is Agent template that uses specialized AI agents to solve complex tasks:
 
 - Python 3.11+
 - OpenAI API key ([get one here](https://platform.openai.com/api-keys))
+- Flyte 2.0 cluster for remote execution (optional) ([Sign up here](https://www.union.ai/beta))
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/unionai-oss/ai-agent-template
 cd agent-basics
 
 # Create virtual environment
