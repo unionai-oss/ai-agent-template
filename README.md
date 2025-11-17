@@ -60,7 +60,30 @@ python -m workflows.flyte_dynamic --local --request "Search for the latest news 
 # Multi-step with dependencies
 python -m workflows.flyte_dynamic --local --request "Search for the GDP of Japan, then multiply it by 2"
 ```
+---
 
+## 🚢 Remote Execution with Flyte
+
+Run workflows on Flyte clusters for scale:
+
+```bash
+# Configure Flyte connection
+flyte create config \
+    --endpoint https://your-flyte-cluster.com \
+    --auth-type headless \
+    --builder remote \
+    --domain development \
+    --project your-project
+
+# Run remotely (omit --local flag)
+python -m workflows.flyte_dynamic --request "Your task"
+```
+
+Benefits:
+- **Scalability**: Run hundreds of workflows in parallel
+- **Resource isolation**: Each agent gets dedicated containers
+- **Observability**: Flyte UI for monitoring
+- **Reproducibility**: Versioned workflows and data lineage
 ---
 
 ## 📚 Understanding the System
@@ -435,34 +458,6 @@ Enable detailed logging in agents:
 logger = Logger(path="agent_trace_log.jsonl", verbose=True)
 ```
 
-### Cost Tracking
-
-Monitor token usage by checking logs for model calls and response lengths.
-
----
-
-## 🚢 Remote Execution with Flyte
-
-Run workflows on Flyte clusters for scale:
-
-```bash
-# Configure Flyte connection
-flyte create config \
-    --endpoint https://your-flyte-cluster.com \
-    --auth-type headless \
-    --builder remote \
-    --domain development \
-    --project your-project
-
-# Run remotely (omit --local flag)
-python -m workflows.flyte_dynamic --request "Your task"
-```
-
-Benefits:
-- **Scalability**: Run hundreds of workflows in parallel
-- **Resource isolation**: Each agent gets dedicated containers
-- **Observability**: Flyte UI for monitoring
-- **Reproducibility**: Versioned workflows and data lineage
 
 ---
 
