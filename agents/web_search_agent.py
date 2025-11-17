@@ -11,6 +11,7 @@ import tools.web_search_tools
 
 from utils.decorators import agent, agent_tools
 from utils.plan_executor import execute_tool_plan, parse_plan_from_response
+from utils.summarizer import smart_summarize
 from dataclasses import dataclass
 from config import base_env, OPENAI_API_KEY
 
@@ -110,8 +111,8 @@ RULES:
 
     full_result = str(result.get("final_result", ""))
 
-    # Create a concise summary (first 500 chars or first paragraph)
-    summary = full_result[:500] + "..." if len(full_result) > 500 else full_result
+    # Create intelligent summary using LLM if content is long
+    summary = await smart_summarize(full_result, context="web_search")
 
     print(f"[Web Search Agent] Summary: {summary[:100]}...")
 

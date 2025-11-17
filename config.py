@@ -19,8 +19,7 @@ base_env = flyte.TaskEnvironment(
     #     idle_ttl=60,
     #     concurrency=6,
     #     scaledown_ttl=60,
-    # ),
-    # base image islightweight, doesn't need much compute
+    # ), # uncomment to enable task reuse
 )
 
 # ----------------------------------
