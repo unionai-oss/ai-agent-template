@@ -11,7 +11,7 @@ base_env = flyte.TaskEnvironment(
     name="base_env",
     image=flyte.Image.from_debian_base().with_requirements("requirements.txt"),
     secrets=[
-        flyte.Secret(key="OPENAI_API_KEY", as_env_var="OPENAI_API_KEY"),
+        flyte.Secret(key="JOE_OPENAI_API_KEY", as_env_var="OPENAI_API_KEY"),
     ],
     resources=flyte.Resources(cpu=2, memory="2Gi"),
     # reusable=flyte.ReusePolicy(
@@ -22,11 +22,11 @@ base_env = flyte.TaskEnvironment(
     # ), # uncomment to enable task reuse
 )
 
-# ----------------------------------
-# Local API Keys
-# ----------------------------------
+# # ----------------------------------
+# # Local API Keys
+# # ----------------------------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-assert OPENAI_API_KEY is not None, "❌ OPENAI_API_KEY is not set!"
+# assert OPENAI_API_KEY is not None, "❌ OPENAI_API_KEY is not set!"
 
 # ----------------------------------
 # Database configuration
