@@ -50,6 +50,8 @@ echo "OPENAI_API_KEY=your-key-here" > .env
 
 ### Your First Agent Workflow
 
+Note: you need to run as a python module for the imports to work correctly. `python -m workflows.flyte_dynamic`
+
 ```bash
 # Simple math task
 python -m workflows.flyte_dynamic --local --request "Calculate 15 times 7"
