@@ -39,12 +39,12 @@ class WeatherAgentResult:
 # Weather Agent Task Environment
 # ----------------------------------
 env = base_env
-# Future: If we need weather-specific dependencies, we can extend:
+# Future: If you need agent-specific dependencies, create separate environments:
 # env = flyte.TaskEnvironment(
-#     name="weather_agent_env",
-#     image=base_env.image.with_pip_packages(["httpx"]),
+#     name="code_agent_env",
+#     image=base_env.image.with_pip_packages(["numpy", "pandas"]),
 #     secrets=base_env.secrets,
-#     resources=flyte.Resources(cpu=1, mem="2Gi")
+#     resources=flyte.Resources(cpu=2, mem="4Gi")
 # )
 
 

@@ -33,7 +33,13 @@ class WriterAgentResult:
 # Writer Agent Task Environment
 # ----------------------------------
 env = base_env
-
+# Future: If you need agent-specific dependencies, create separate environments:
+# env = flyte.TaskEnvironment(
+#     name="code_agent_env",
+#     image=base_env.image.with_pip_packages(["numpy", "pandas"]),
+#     secrets=base_env.secrets,
+#     resources=flyte.Resources(cpu=2, mem="4Gi")
+# )
 
 @env.task
 @agent("writer")

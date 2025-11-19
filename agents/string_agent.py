@@ -39,14 +39,12 @@ class StringAgentResult:
 # String Agent Task Environment
 # ----------------------------------
 env = base_env
+# Future: If you need agent-specific dependencies, create separate environments:
 # env = flyte.TaskEnvironment(
-#     name="string_agent_env",
-#     image=flyte.Image.from_debian_base().with_requirements("requirements.txt"),
-#     secrets=[
-#         flyte.Secret(key="OPENAI_API_KEY", as_env_var="OPENAI_API_KEY"),
-#     ],
-#     # Future: Add string-specific resources if needed
-#     # resources=flyte.Resources(cpu=1, mem="2Gi")
+#     name="code_agent_env",
+#     image=base_env.image.with_pip_packages(["numpy", "pandas"]),
+#     secrets=base_env.secrets,
+#     resources=flyte.Resources(cpu=2, mem="4Gi")
 # )
 
 
