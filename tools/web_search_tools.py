@@ -1,7 +1,7 @@
 from utils.decorators import tool
 from ddgs import DDGS
 import flyte
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import httpx
 from bs4 import BeautifulSoup
 
@@ -16,7 +16,7 @@ async def duck_duck_go(
     region: str = "us-en",
     safesearch: str = "moderate",
     timelimit: Optional[str] = None
-) -> list[dict]:
+) -> List[Dict[str, str]]:
     """
     Search DuckDuckGo for web results.
 
@@ -31,7 +31,7 @@ async def duck_duck_go(
             Options: "d" (day), "w" (week), "m" (month), "y" (year)
 
     Returns:
-        list[dict]: List of search results with 'title', 'href', and 'body' keys.
+        List[Dict[str, str]]: List of search results with 'title', 'href', and 'body' keys.
     """
     ddgs = DDGS()
 
@@ -60,7 +60,7 @@ async def duck_duck_go(
 # ----------------------------------
 @tool(agent="web_search")
 @flyte.trace
-async def fetch_webpage(url: str, max_length: int = 5000) -> dict:
+async def fetch_webpage(url: str, max_length: int = 5000) -> Dict[str, str]:
     """
     Fetch and extract text content from a webpage.
 
@@ -69,7 +69,7 @@ async def fetch_webpage(url: str, max_length: int = 5000) -> dict:
         max_length (int): Maximum length of content to return (default: 5000 chars).
 
     Returns:
-        dict: Dictionary with 'url', 'title', 'content', and 'error' keys.
+        Dict[str, str]: Dictionary with 'url', 'title', 'content', and 'error' keys.
     """
     try:
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
