@@ -6,3 +6,4 @@ flyte==2.0.0b25
 httpx
 unionai-reuse
 ipython
+tavily-python
