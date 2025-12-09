@@ -4,6 +4,7 @@ This module defines the writer_agent, which can create written content based on 
 
 import flyte
 from openai import AsyncOpenAI
+import os
 
 from utils.decorators import agent
 from dataclasses import dataclass
@@ -41,12 +42,18 @@ env = base_env
 #     resources=flyte.Resources(cpu=2, mem="4Gi")
 # )
 
-@env.task
+@env.task(
+    retries=3,  # Retry up to 3 times on failure
+    timeout=60,  # Timeout after 60 seconds
+)
 @agent("writer")
 async def writer_agent(task: str) -> WriterAgentResult:
     """
     Writer agent that creates written content based on research and requirements.
     Uses LLM directly to generate content without intermediate tools.
+
+    This task demonstrates Flyte's automatic retry capability - if it fails,
+    Flyte will automatically retry up to 3 times.
 
     Args:
         task (str): The writing task to perform (should include research context).
@@ -54,9 +61,8 @@ async def writer_agent(task: str) -> WriterAgentResult:
     Returns:
         WriterAgentResult: The written content.
     """
-    print(f"[Writer Agent] Processing: {task}")
+    print(f"[Writer Agent] Processing: {task[:100]}...")
 
-    # Initialize client inside task for Flyte secret injection
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
     system_msg = """
