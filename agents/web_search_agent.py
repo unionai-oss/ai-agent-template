@@ -58,8 +58,6 @@ async def web_search_agent(task: str) -> WebSearchAgentResult:
     2. Uses DuckDuckGo to search
     3. Returns the results
 
-    No fancy reflexion or quality checks - just straightforward search.
-
     Args:
         task (str): The search query or task description
 
